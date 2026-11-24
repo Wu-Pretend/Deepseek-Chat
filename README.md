@@ -57,6 +57,18 @@ REMOTE_STORAGE_URL=http://127.0.0.1:8787 npm run dev
 
 When enabled, the app pulls newer sessions and attachments from the server on startup and pushes locally newer sessions to it. Every subsequent save, rename, and delete is mirrored. Conflicts use per-session `updatedAt` last-write-wins.
 
+The server can also import DeepSeek's official history ZIP directly:
+
+```bash
+curl -X POST \
+  -H "Authorization: Bearer <Token>" \
+  -H "Content-Type: application/zip" \
+  --data-binary @deepseek_data.zip \
+  https://storage.example.com/api/import/official
+```
+
+After importing, click "Sync now" in the frontend to pull the new sessions.
+
 ## Data and storage
 
 Your API key and settings are stored in the browser's localStorage. Conversations and original attachments are stored in IndexedDB. Local data is isolated by browser profile and site origin. Sending messages, uploading attachments, and using speech features sends the relevant content to the configured API service.

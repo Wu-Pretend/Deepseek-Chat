@@ -57,6 +57,18 @@ REMOTE_STORAGE_URL=http://127.0.0.1:8787 npm run dev
 
 启用后，应用启动时会从外部服务器拉取较新的会话和附件，并把本地较新的会话推送到服务器；之后每次保存、重命名、删除都会镜像到服务器。冲突策略是按会话 `updatedAt` 的 last-write-wins。
 
+服务端也支持直接导入 DeepSeek 官方历史记录 ZIP：
+
+```bash
+curl -X POST \
+  -H "Authorization: Bearer <Token>" \
+  -H "Content-Type: application/zip" \
+  --data-binary @deepseek_data.zip \
+  https://storage.example.com/api/import/official
+```
+
+导入后前端点击「立即同步」即可拉取。
+
 ## 数据
 
 API Key 和设置保存在浏览器 localStorage，会话及附件原件保存在 IndexedDB，本地数据按浏览器用户配置和站点源（origin）隔离。发送对话、上传附件和使用语音功能时，相应内容会提交给配置的 API 服务。

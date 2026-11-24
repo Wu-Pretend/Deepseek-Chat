@@ -28,6 +28,7 @@ import { randomUUID } from 'node:crypto'
 import { mkdir, readFile, readdir, rename, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import process from 'node:process'
+import { importOfficialArchive } from './import-official.mjs'
 
 const HOST = process.env.REMOTE_STORAGE_HOST || '127.0.0.1'
 const PORT = Number(process.env.REMOTE_STORAGE_PORT || 8787)
@@ -39,6 +40,7 @@ const FILES_DIR = path.join(DATA_DIR, 'files')
 const TOMBSTONES_FILE = path.join(DATA_DIR, 'tombstones.json')
 const JSON_LIMIT = 32 * 1024 * 1024
 const FILE_LIMIT = 128 * 1024 * 1024
+const IMPORT_LIMIT = 256 * 1024 * 1024
 const ID_PATTERN = /^[A-Za-z0-9._-]{1,200}$/
 
 await mkdir(SESSIONS_DIR, { recursive: true })
@@ -116,6 +118,14 @@ const ensureId = (id) => {
 const sessionFile = (id) => path.join(SESSIONS_DIR, `${ensureId(id)}.json`)
 const filePath = (id) => path.join(FILES_DIR, ensureId(id))
 const fileMetaPath = (id) => path.join(FILES_DIR, `${ensureId(id)}.json`)
+
+const writeStoredFile = async (id, data, contentType) => {
+  await atomicWrite(filePath(id), data)
+  await atomicWrite(
+    fileMetaPath(id),
+    JSON.stringify({ contentType, size: data.length, updatedAt: Date.now() })
+  )
+}
 
 const readTombstones = async () => {
   try {
@@ -200,6 +210,24 @@ const server = createServer(async (req, res) => {
 
     if (pathname === '/api/tombstones' && req.method === 'GET') {
       sendJson(res, 200, await readTombstones())
+      return
+    }
+
+    if (pathname === '/api/import/official' && req.method === 'POST') {
+      const body = await readBody(req, IMPORT_LIMIT)
+      const imported = importOfficialArchive(body)
+      for (const file of imported.files) {
+        await writeStoredFile(file.id, file.data, file.contentType)
+      }
+      for (const session of imported.sessions) {
+        await atomicWrite(sessionFile(session.id), JSON.stringify(session))
+      }
+      sendJson(res, 200, {
+        ok: true,
+        sessions: imported.sessions.length,
+        files: imported.files.length,
+        entries: imported.entryCount,
+      })
       return
     }
 

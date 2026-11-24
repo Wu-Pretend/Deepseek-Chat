@@ -51,6 +51,7 @@ PUT    /api/files/:id
 DELETE /api/files/:id
 GET    /api/tombstones
 DELETE /api/all
+POST   /api/import/official     DeepSeek 官方历史 ZIP 导入
 ```
 
 除 `/health` 外，如果设置了 `REMOTE_STORAGE_TOKEN`，请求必须带：
@@ -58,6 +59,43 @@ DELETE /api/all
 ```http
 Authorization: Bearer <token>
 ```
+
+## 导入 DeepSeek 官方历史 ZIP
+
+服务端可以直接导入官方导出的聊天记录 ZIP：
+
+```bash
+curl -X POST \
+  -H "Authorization: Bearer <你的Token>" \
+  -H "Content-Type: application/zip" \
+  --data-binary @deepseek_data-2026-01-01.zip \
+  https://storage.example.com/api/import/official
+```
+
+返回示例：
+
+```json
+{
+  "ok": true,
+  "sessions": 12,
+  "files": 34,
+  "entries": 58
+}
+```
+
+导入后：
+
+- 会话写入 `DATA_DIR/sessions/*.json`
+- 图片附件写入 `DATA_DIR/files/*`
+- 前端下次「立即同步」或刷新时即可拉取
+
+支持官方格式：
+
+```text
+export_format_version: 3
+```
+
+不支持 ZIP64、加密 ZIP、分卷 ZIP。
 
 ## 部署
 
