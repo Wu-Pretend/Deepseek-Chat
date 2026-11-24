@@ -1,0 +1,30 @@
+services:
+  chat-demo-storage:
+    build: .
+    container_name: chat-demo-storage
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8787:8787"
+    environment:
+      REMOTE_STORAGE_HOST: 0.0.0.0
+      REMOTE_STORAGE_PORT: 8787
+      REMOTE_STORAGE_TOKEN: ${REMOTE_STORAGE_TOKEN:?REMOTE_STORAGE_TOKEN is required}
+      DATA_DIR: /data
+      CORS_ORIGIN: ${CORS_ORIGIN:-https://go.wu-pretend.top}
+    volumes:
+      - chat-demo-data:/data
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:8787/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+volumes:
+  chat-demo-data:

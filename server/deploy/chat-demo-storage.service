@@ -1,0 +1,19 @@
+[Unit]
+Description=chat-demo external storage
+After=network.target
+
+[Service]
+Type=simple
+User=chatdemo
+WorkingDirectory=/opt/chat-demo-storage
+Environment=REMOTE_STORAGE_HOST=127.0.0.1
+Environment=REMOTE_STORAGE_PORT=8787
+Environment=REMOTE_STORAGE_TOKEN=CHANGE_ME
+Environment=DATA_DIR=/srv/chat-demo-data
+Environment=CORS_ORIGIN=https://go.wu-pretend.top
+ExecStart=/usr/bin/node /opt/chat-demo-storage/index.mjs
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

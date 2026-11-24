@@ -12,3 +12,6 @@ tmp/
 data/
 .test-data/
 .npm-cache/
+
+# local docker build cache
+.docker-config/

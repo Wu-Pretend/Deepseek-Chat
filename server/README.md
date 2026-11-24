@@ -96,3 +96,144 @@ node server/index.mjs
 - GitHub Pages 是 HTTPS，所以外部存储地址也必须是 HTTPS，否则浏览器会拦截混合内容。
 - `REMOTE_STORAGE_TOKEN` 只放在阿里云服务端和浏览器设置里，不进入 GitHub 仓库。
 - API Key 只保存在浏览器 `localStorage`，不会写入同步的会话数据或外部存储服务。
+
+
+## Docker 部署
+
+`server/` 目录中包含：
+
+```text
+Dockerfile
+docker-compose.yml
+```
+
+### 1. 准备环境变量
+
+```bash
+cd server
+cat > .env <<'EOF'
+REMOTE_STORAGE_TOKEN=请替换成强随机Token
+CORS_ORIGIN=https://go.wu-pretend.top
+EOF
+```
+
+### 2. 启动
+
+```bash
+docker compose up -d --build
+```
+
+查看状态：
+
+```bash
+docker compose ps
+docker compose logs -f
+```
+
+健康检查：
+
+```bash
+curl http://127.0.0.1:8787/health
+```
+
+### 3. 数据持久化
+
+docker-compose 默认使用 named volume：
+
+```text
+chat-demo-data
+```
+
+备份：
+
+```bash
+docker run --rm \
+  -v chat-demo-storage_chat-demo-data:/data \
+  -v "$PWD:/backup" \
+  alpine tar czf /backup/chat-demo-data.tar.gz -C /data .
+```
+
+> 卷名前缀取决于 compose project 名，可用 `docker volume ls` 查看。
+
+### 4. 国内服务器拉取镜像
+
+如果 Docker Hub 访问慢，给 Docker 配置阿里云镜像加速器：
+
+```json
+{
+  "registry-mirrors": ["https://<你的ID>.mirror.aliyuncs.com"]
+}
+```
+
+写入 `/etc/docker/daemon.json` 后重启 Docker：
+
+```bash
+sudo systemctl restart docker
+```
+
+## 原生 systemd 部署
+
+如果不使用 Docker，可以把 `index.mjs` 复制到服务器，用 systemd 托管：
+
+```bash
+sudo mkdir -p /opt/chat-demo-storage /srv/chat-demo-data
+sudo cp index.mjs /opt/chat-demo-storage/
+sudo useradd --system --home /opt/chat-demo-storage --shell /usr/sbin/nologin chatdemo || true
+sudo chown -R chatdemo:chatdemo /opt/chat-demo-storage /srv/chat-demo-data
+```
+
+复制并修改：
+
+```text
+deploy/chat-demo-storage.service
+```
+
+到：
+
+```text
+/etc/systemd/system/chat-demo-storage.service
+```
+
+修改其中的：
+
+```text
+REMOTE_STORAGE_TOKEN
+CORS_ORIGIN
+```
+
+然后：
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now chat-demo-storage
+sudo systemctl status chat-demo-storage
+```
+
+## Nginx 反向代理
+
+参考：
+
+```text
+deploy/nginx.conf.example
+```
+
+重点：
+
+- 只监听 `127.0.0.1:8787`
+- 对公网只暴露 `443`
+- `client_max_body_size` 至少 128m
+- 使用 HTTPS 证书
+
+## 更新服务
+
+Docker：
+
+```bash
+docker compose up -d --build
+```
+
+systemd：
+
+```bash
+sudo systemctl restart chat-demo-storage
+```
