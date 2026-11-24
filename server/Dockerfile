@@ -2,7 +2,7 @@ FROM node:22-alpine
 
 WORKDIR /app
 
-COPY index.mjs ./
+COPY index.mjs import-official.mjs ./
 
 RUN mkdir -p /data && chown node:node /data
 

@@ -215,7 +215,7 @@ sudo systemctl restart docker
 
 ```bash
 sudo mkdir -p /opt/chat-demo-storage /srv/chat-demo-data
-sudo cp index.mjs /opt/chat-demo-storage/
+sudo cp index.mjs import-official.mjs /opt/chat-demo-storage/
 sudo useradd --system --home /opt/chat-demo-storage --shell /usr/sbin/nologin chatdemo || true
 sudo chown -R chatdemo:chatdemo /opt/chat-demo-storage /srv/chat-demo-data
 ```
