@@ -35,6 +35,28 @@ The output is written to `dist/`. Deploy it to a static web server or open `dist
 - Markdown, syntax highlighting, KaTeX math, and Mermaid diagrams.
 - Simplified Chinese and English, light and dark themes, mobile layouts, location settings, and chat history import and export.
 
+## External storage (optional)
+
+By default chats are stored in the browser's IndexedDB. To sync across devices, start the bundled zero-dependency storage server:
+
+```sh
+npm run server
+```
+
+It listens on `http://127.0.0.1:8787` and stores data in `./data/`. See [server/README.md](server/README.md) for server configuration.
+
+Configure the frontend in one of two ways:
+
+1. Inject a default URL at build time:
+
+```sh
+REMOTE_STORAGE_URL=http://127.0.0.1:8787 npm run dev
+```
+
+2. Set the server URL and optional token in **Settings → Data → External storage** at runtime.
+
+When enabled, the app pulls newer sessions and attachments from the server on startup and pushes locally newer sessions to it. Every subsequent save, rename, and delete is mirrored. Conflicts use per-session `updatedAt` last-write-wins.
+
 ## Data and storage
 
 Your API key and settings are stored in the browser's localStorage. Conversations and original attachments are stored in IndexedDB. Local data is isolated by browser profile and site origin. Sending messages, uploading attachments, and using speech features sends the relevant content to the configured API service.

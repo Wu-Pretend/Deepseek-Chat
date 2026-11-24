@@ -13,3 +13,6 @@ declare module 'prismjs/components/*' {}
 
 /** KaTeX 化学公式扩展通过副作用注册到 KaTeX */
 declare module 'katex/contrib/mhchem' {}
+
+/** 外部存储服务地址；为空时使用浏览器本地 IndexedDB */
+declare const __REMOTE_STORAGE_URL__: string

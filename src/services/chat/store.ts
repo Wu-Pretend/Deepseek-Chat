@@ -11,6 +11,8 @@ import {
   useUploads,
 } from '../attachments.js'
 import { useSettings } from '../settings.js'
+import { isRemoteStorageConfigured } from '../remoteStorage.js'
+import * as remoteSync from './remoteSync.js'
 import { appendBranch, getVisibleMessages, normalizeSession, selectVersion } from './branches.js'
 import * as db from './db.js'
 import {
@@ -212,6 +214,11 @@ const persist = (sessionId: string) => {
           }))
           trimSessionCache()
         }
+        if (isRemoteStorageConfigured()) {
+          void remoteSync.pushSession(session, files ?? []).catch((error: unknown) => {
+            db.reportStorageError('push remote session')(error)
+          })
+        }
       })
       .catch((error: unknown) => {
         db.reportStorageError('save session')(error)
@@ -228,6 +235,17 @@ export const retrySaveSessions = () => {
   if (!get().importingHistory) {
     unsavedSessions.forEach(persist)
   }
+}
+
+/** 手动触发一次外部存储双向同步，返回合并后的会话数。 */
+export const syncRemoteNow = async (): Promise<number> => {
+  if (!isRemoteStorageConfigured()) {
+    return get().sessions.length
+  }
+  await remoteSync.pullIntoLocal()
+  const summaries = await db.loadSessionSummaries()
+  set({ sessions: sortSessions(summaries) })
+  return summaries.length
 }
 
 /** 离开前先合并尚未绘制的增量；隐藏期间浏览器可能暂停动画帧。 */
@@ -305,6 +323,11 @@ export const initChat = (): Promise<void> => {
   set({ initError: false })
   initTask = (async () => {
     try {
+      if (isRemoteStorageConfigured()) {
+        await remoteSync.pullIntoLocal().catch((error: unknown) => {
+          db.reportStorageError('pull remote storage')(error)
+        })
+      }
       const summaries = await db.loadSessionSummaries()
       if (epoch === historyEpoch) {
         set({ ready: true, sessions: sortSessions(summaries) })
@@ -423,6 +446,11 @@ export const replaceHistory = async (write: () => Promise<void>): Promise<number
     unsavedSessions.clear()
     pendingFiles.clear()
     clearAllDrafts()
+    if (isRemoteStorageConfigured()) {
+      void remoteSync.replaceRemoteWithLocal().catch((error: unknown) => {
+        db.reportStorageError('replace remote storage')(error)
+      })
+    }
     set({
       ready: true,
       initError: false,
@@ -479,7 +507,15 @@ export const renameSession = (id: string, title: string) => {
         session.id === id ? { ...session, title } : session
       ),
     }))
-    void db.renameSession(id, title).catch(db.reportStorageError('rename session'))
+    void db
+      .renameSession(id, title)
+      .then(() => {
+        if (isRemoteStorageConfigured()) {
+          return remoteSync.pushSessionTitle(id, title)
+        }
+        return undefined
+      })
+      .catch(db.reportStorageError('rename session'))
   }
 }
 
@@ -507,6 +543,11 @@ const removeSessionData = async (id: string): Promise<boolean> => {
       return false
     }
     await db.deleteSession(id)
+    if (isRemoteStorageConfigured()) {
+      void remoteSync.deleteSession(id).catch((error: unknown) => {
+        db.reportStorageError('delete remote session')(error)
+      })
+    }
     if (epoch !== historyEpoch) {
       return true
     }

@@ -16,12 +16,14 @@ import {
   importHistory,
 } from '../../services/chat/backup.js'
 import { useIsMobile } from '../../app/viewport.js'
-import { useChatStore } from '../../services/chat/store.js'
+import { syncRemoteNow, useChatStore } from '../../services/chat/store.js'
+import { remoteHealth } from '../../services/remoteStorage.js'
 import { regionCodes, getRegionName, provinces } from '../../services/location.js'
 import {
   isChineseBrowser,
   setLocale,
   setLocation,
+  setRemoteStorage,
   setThemePreference,
   setTtsVoice,
   useSettings,
@@ -104,6 +106,7 @@ const SettingsContent = () => {
           ) : (
             <>
               <ApiKeyField editor={apiKeyEditor} />
+              <RemoteStorageSetting />
               <ImportHistory historyImport={historyImport} disabled={historyBusy} />
               <ExportHistory disabled={historyBusy} />
               <SettingCell
@@ -203,6 +206,98 @@ const useHistoryDelete = () => {
     },
     confirm,
   }
+}
+
+/** 外部存储：把会话和附件镜像到自建 HTTP 服务，实现跨设备同步。 */
+const RemoteStorageSetting = () => {
+  const t = useTranslate()
+  const savedUrl = useSettings((state) => state.remoteStorageUrl)
+  const savedToken = useSettings((state) => state.remoteStorageToken)
+  const [url, setUrl] = useState(savedUrl)
+  const [token, setToken] = useState(savedToken)
+  const [busy, setBusy] = useState<'test' | 'sync' | null>(null)
+  const [status, setStatus] = useState<Status>(null)
+
+  const apply = () => setRemoteStorage(url, token)
+
+  const test = async () => {
+    apply()
+    setBusy('test')
+    setStatus(null)
+    try {
+      const ok = await remoteHealth()
+      setStatus(
+        ok
+          ? { key: 'remoteStorageConnected' }
+          : { key: 'remoteStorageConnectFailed', error: true }
+      )
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  const sync = async () => {
+    apply()
+    setBusy('sync')
+    setStatus(null)
+    try {
+      const count = await syncRemoteNow()
+      setStatus({ key: 'remoteStorageSyncDone', params: { count } })
+    } catch (error) {
+      setStatus({
+        key: 'remoteStorageSyncFailed',
+        params: { message: error instanceof Error ? error.message : String(error) },
+        error: true,
+      })
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  return (
+    <div className={styles.remoteStorage}>
+      <div className={styles.text}>
+        <div className={styles.label}>{t('remoteStorageTitle')}</div>
+        <div className={clsx(styles.description, status?.error && styles.error)}>
+          {status ? t(status.key, status.params) : t('remoteStorageDescription')}
+        </div>
+      </div>
+      <div className={styles.remoteStorageFields}>
+        <input
+          className={styles.remoteStorageInput}
+          value={url}
+          placeholder={t('remoteStorageUrlPlaceholder')}
+          aria-label={t('remoteStorageUrl')}
+          onChange={(event) => setUrl(event.target.value)}
+        />
+        <input
+          className={styles.remoteStorageInput}
+          value={token}
+          type="password"
+          placeholder={t('remoteStorageTokenPlaceholder')}
+          aria-label={t('remoteStorageToken')}
+          onChange={(event) => setToken(event.target.value)}
+        />
+      </div>
+      <div className={styles.remoteStorageActions}>
+        <Button
+          variant="outlined"
+          size="m"
+          disabled={busy !== null || url.trim().length === 0}
+          onClick={() => void test()}
+        >
+          {t('remoteStorageTest')}
+        </Button>
+        <Button
+          size="m"
+          disabled={busy !== null || url.trim().length === 0}
+          onClick={() => void sync()}
+        >
+          {t('remoteStorageSync')}
+        </Button>
+      </div>
+    </div>
+  )
 }
 
 const LocationSetting = () => {

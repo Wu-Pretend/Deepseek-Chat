@@ -7,7 +7,7 @@ export type Locale = 'zh-CN' | 'en-US'
 /** 主题偏好；默认跟随系统 */
 export type ThemePreference = 'light' | 'dark' | 'system'
 
-/** 本机设置，存 localStorage：API Key、语言、主题、位置、朗读音色、深度思考与智能搜索开关、侧边栏收起状态 */
+/** 本机设置，存 localStorage：API Key、语言、主题、位置、朗读音色、深度思考与智能搜索开关、侧边栏收起状态、外部存储地址 */
 type Settings = {
   apiKey: string | null
   locale: Locale
@@ -17,6 +17,8 @@ type Settings = {
   thinking: boolean
   search: boolean
   siderCollapsed: boolean
+  remoteStorageUrl: string
+  remoteStorageToken: string
 }
 
 const KEYS = {
@@ -28,6 +30,8 @@ const KEYS = {
   thinking: 'chat-demo:thinking',
   search: 'chat-demo:search',
   siderCollapsed: 'chat-demo:sider-collapsed',
+  remoteStorageUrl: 'chat-demo:remote-storage-url',
+  remoteStorageToken: 'chat-demo:remote-storage-token',
 } as const
 
 const read = (key: string) => {
@@ -96,6 +100,8 @@ export const useSettings = create<Settings>(() => ({
   thinking: read(KEYS.thinking) === 'true',
   search: read(KEYS.search) === 'true',
   siderCollapsed: read(KEYS.siderCollapsed) === 'true',
+  remoteStorageUrl: read(KEYS.remoteStorageUrl) ?? __REMOTE_STORAGE_URL__,
+  remoteStorageToken: read(KEYS.remoteStorageToken) ?? '',
 }))
 
 export const setLocale = (locale: Locale) => {
@@ -137,4 +143,15 @@ export const setSearch = (search: boolean) => {
 export const setSiderCollapsed = (siderCollapsed: boolean) => {
   write(KEYS.siderCollapsed, String(siderCollapsed))
   useSettings.setState({ siderCollapsed })
+}
+
+export const setRemoteStorage = (url: string, token: string) => {
+  const normalizedUrl = url.trim()
+  const normalizedToken = token.trim()
+  write(KEYS.remoteStorageUrl, normalizedUrl || null)
+  write(KEYS.remoteStorageToken, normalizedToken || null)
+  useSettings.setState({
+    remoteStorageUrl: normalizedUrl,
+    remoteStorageToken: normalizedToken,
+  })
 }
