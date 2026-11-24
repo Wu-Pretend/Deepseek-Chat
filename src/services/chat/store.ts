@@ -447,9 +447,12 @@ export const replaceHistory = async (write: () => Promise<void>): Promise<number
     pendingFiles.clear()
     clearAllDrafts()
     if (isRemoteStorageConfigured()) {
-      void remoteSync.replaceRemoteWithLocal().catch((error: unknown) => {
+      // 官方历史 ZIP 导入或清空后，等待远端也完成替换，避免用户刚看到成功就关闭页面导致远端不同步。
+      try {
+        await remoteSync.replaceRemoteWithLocal()
+      } catch (error) {
         db.reportStorageError('replace remote storage')(error)
-      })
+      }
     }
     set({
       ready: true,

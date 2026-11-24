@@ -116,7 +116,7 @@ export const en = {
   historyImportConfirmDescription:
     'The uploaded chat history will replace all your current chats. Import anyway?',
   historyImportDescription:
-    'Importing chat history replaces all local chats and attachments. Supports ZIP files exported from DeepSeek.',
+    'Importing chat history replaces all local chats and attachments. Supports ZIP files exported from DeepSeek; when external storage is enabled, the imported data is synced to the server.',
   historyImportedOne: 'Imported 1 chat',
   historyImported: 'Imported {count} chats',
   historyImportFailed:
