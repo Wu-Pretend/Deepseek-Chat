@@ -26,6 +26,7 @@ http://127.0.0.1:8787
 | `REMOTE_STORAGE_TOKEN` | 空 | 可选 Bearer Token |
 | `DATA_DIR` | `./data` | 数据目录 |
 | `CORS_ORIGIN` | `*` | 允许的前端来源 |
+| `IMPORT_LIMIT_MB` | `512` | 官方 ZIP 导入请求体上限（MB） |
 
 示例：
 
@@ -259,7 +260,7 @@ deploy/nginx.conf.example
 
 - 只监听 `127.0.0.1:8787`
 - 对公网只暴露 `443`
-- `client_max_body_size` 至少 128m
+- `client_max_body_size` 至少 512m（大 ZIP 可继续调大）
 - 使用 HTTPS 证书
 
 ## 更新服务
@@ -275,3 +276,51 @@ systemd：
 ```bash
 sudo systemctl restart chat-demo-storage
 ```
+
+
+## 大文件导入排查（例如 200MB ZIP）
+
+大 ZIP 导入时间可能较长，建议：
+
+1. Nginx 配置：
+
+```nginx
+client_max_body_size 512m;
+proxy_request_buffering off;
+proxy_read_timeout 3600s;
+proxy_send_timeout 3600s;
+proxy_connect_timeout 60s;
+```
+
+2. Docker 环境变量：
+
+```yaml
+environment:
+  IMPORT_LIMIT_MB: 512
+```
+
+3. 用 `curl` 直接测试，并显示进度：
+
+```bash
+curl --progress-bar -X POST \
+  -H "Authorization: Bearer $REMOTE_STORAGE_TOKEN" \
+  -H "Content-Type: application/zip" \
+  --data-binary @deepseek_data.zip \
+  https://storage.example.com/api/import/official
+```
+
+4. 检查是否 OOM：
+
+```bash
+docker stats --no-stream chat-demo-storage
+free -h
+dmesg | tail -50
+```
+
+5. 查看服务端日志：
+
+```bash
+docker logs --tail=200 chat-demo-storage
+```
+
+服务端现在按条目逐个解压和写入，不会把全部图片同时保留在内存中；但请求体本身仍需要一次性读入内存。

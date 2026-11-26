@@ -11,6 +11,7 @@ services:
       REMOTE_STORAGE_TOKEN: ${REMOTE_STORAGE_TOKEN:?REMOTE_STORAGE_TOKEN is required}
       DATA_DIR: /data
       CORS_ORIGIN: ${CORS_ORIGIN:-https://go.wu-pretend.top}
+      IMPORT_LIMIT_MB: ${IMPORT_LIMIT_MB:-512}
     volumes:
       - chat-demo-data:/data
     healthcheck:

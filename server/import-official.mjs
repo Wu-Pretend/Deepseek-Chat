@@ -33,7 +33,7 @@ const findEndOfCentralDirectory = (buffer) => {
   fail('invalid ZIP archive: end of central directory not found')
 }
 
-export const readZipEntries = (buffer) => {
+export const readZipDirectory = (buffer) => {
   const eocd = findEndOfCentralDirectory(buffer)
   const entriesCount = buffer.readUInt16LE(eocd + 10)
   const centralOffset = buffer.readUInt32LE(eocd + 16)
@@ -65,23 +65,28 @@ export const readZipEntries = (buffer) => {
     const localNameLength = buffer.readUInt16LE(localHeaderOffset + 26)
     const localExtraLength = buffer.readUInt16LE(localHeaderOffset + 28)
     const dataStart = localHeaderOffset + 30 + localNameLength + localExtraLength
-    const compressed = buffer.subarray(dataStart, dataStart + compressedSize)
-
-    let data
-    if (method === 0) {
-      data = Buffer.from(compressed)
-    } else if (method === 8) {
-      data = inflateRawSync(compressed)
-    } else {
-      fail(`unsupported ZIP compression method ${method} for ${name}`)
-    }
-    if (uncompressedSize !== data.length) {
-      fail(`invalid ZIP entry size for ${name}`)
-    }
-    entries.set(name, data)
+    entries.set(name, { method, compressedSize, uncompressedSize, dataStart })
     offset += 46 + nameLength + extraLength + commentLength
   }
   return entries
+}
+
+/** Decompress one archive entry on demand; callers must not retain large buffers. */
+const readZipEntry = (buffer, entry) => {
+  if (!entry) fail('missing ZIP entry')
+  const compressed = buffer.subarray(entry.dataStart, entry.dataStart + entry.compressedSize)
+  let data
+  if (entry.method === 0) {
+    data = Buffer.from(compressed)
+  } else if (entry.method === 8) {
+    data = inflateRawSync(compressed)
+  } else {
+    fail(`unsupported ZIP compression method ${entry.method}`)
+  }
+  if (entry.uncompressedSize !== data.length) {
+    fail('invalid ZIP entry size')
+  }
+  return data
 }
 
 // ---------------------------------------------------------------------------
@@ -360,19 +365,24 @@ const imageType = (bytes) => {
   return 'application/octet-stream'
 }
 
-const parseJsonEntry = (entries, path) => {
-  const data = entries.get(path)
-  if (!data) fail(`missing ${path} in official archive`)
+const parseJsonEntry = (buffer, entries, path) => {
+  const entry = entries.get(path)
+  if (!entry) fail(`missing ${path} in official archive`)
   try {
-    return JSON.parse(data.toString('utf8'))
+    return JSON.parse(readZipEntry(buffer, entry).toString('utf8'))
   } catch {
     fail(`invalid JSON in ${path}`)
   }
 }
 
-export const importOfficialArchive = (buffer) => {
-  const entries = readZipEntries(buffer)
-  const manifest = parseJsonEntry(entries, 'manifest.json')
+/**
+ * Process an official archive incrementally. Uncompressed entries are never
+ * all retained: each session JSON and each image is decoded only when needed,
+ * then handed to the caller for immediate persistence.
+ */
+export const importOfficialArchive = async (buffer, handlers) => {
+  const entries = readZipDirectory(buffer)
+  const manifest = parseJsonEntry(buffer, entries, 'manifest.json')
   if (!isRecord(manifest)) fail('invalid manifest.json')
   if (manifest.export_format_version > EXPORT_FORMAT_VERSION) {
     fail('archive format is newer than this server supports')
@@ -381,24 +391,26 @@ export const importOfficialArchive = (buffer) => {
     fail('unsupported archive format version')
   }
 
-  const index = parseJsonEntry(entries, 'chat_session_index.json')
+  const index = parseJsonEntry(buffer, entries, 'chat_session_index.json')
   if (!Array.isArray(index)) fail('invalid chat_session_index.json')
   const listed = new Set(index.map((item) => item && item.id))
   if (listed.size !== index.length) fail('duplicate session ids in chat_session_index.json')
 
-  const sessions = []
-  const files = []
-  const seenFiles = new Set()
   const sessionPaths = [...entries.keys()].filter((path) =>
     /^chat_sessions\/[^/]+\.json$/.test(path)
   )
   if (sessionPaths.length !== listed.size) fail('session index does not match archive entries')
 
+  const importedIds = new Set()
+  const seenFiles = new Set()
+  let fileCount = 0
+
   for (const path of sessionPaths) {
-    const raw = parseJsonEntry(entries, path)
+    const raw = parseJsonEntry(buffer, entries, path)
     const { session, images } = toLocalSession(raw)
-    if (!listed.has(session.id)) fail(`session ${session.id} is missing from the index`)
-    sessions.push(session)
+    if (!listed.has(session.id) || importedIds.has(session.id)) {
+      fail(`session ${session.id} is missing from the index`)
+    }
 
     const imageByFileId = new Map([...images.entries()].map(([imagePath, id]) => [id, imagePath]))
     for (const message of session.messages) {
@@ -407,21 +419,27 @@ export const importOfficialArchive = (buffer) => {
         if (seenFiles.has(file.id)) continue
         const imagePath = imageByFileId.get(file.id)
         if (!imagePath) continue
-        const bytes = entries.get(imagePath)
-        if (!bytes) continue
+        const entry = entries.get(imagePath)
+        if (!entry) continue
+        const bytes = readZipEntry(buffer, entry)
         const contentType = imageType(bytes)
         file.mimeType = contentType
-        files.push({ id: file.id, data: bytes, contentType })
+        await handlers.onFile({ id: file.id, data: bytes, contentType })
         seenFiles.add(file.id)
+        fileCount += 1
       }
     }
+
+    await handlers.onSession(session)
+    importedIds.add(session.id)
   }
-  const importedIds = new Set(sessions.map((session) => session.id))
+
   if (
     importedIds.size !== listed.size ||
     [...listed].some((id) => !importedIds.has(id))
   ) {
     fail('session index does not match archive entries')
   }
-  return { sessions, files, entryCount: entries.size }
+
+  return { sessions: importedIds.size, files: fileCount, entryCount: entries.size }
 }

@@ -40,7 +40,8 @@ const FILES_DIR = path.join(DATA_DIR, 'files')
 const TOMBSTONES_FILE = path.join(DATA_DIR, 'tombstones.json')
 const JSON_LIMIT = 32 * 1024 * 1024
 const FILE_LIMIT = 128 * 1024 * 1024
-const IMPORT_LIMIT = 256 * 1024 * 1024
+const IMPORT_LIMIT_MB = Number(process.env.IMPORT_LIMIT_MB || 512)
+const IMPORT_LIMIT = IMPORT_LIMIT_MB * 1024 * 1024
 const ID_PATTERN = /^[A-Za-z0-9._-]{1,200}$/
 
 await mkdir(SESSIONS_DIR, { recursive: true })
@@ -215,17 +216,18 @@ const server = createServer(async (req, res) => {
 
     if (pathname === '/api/import/official' && req.method === 'POST') {
       const body = await readBody(req, IMPORT_LIMIT)
-      const imported = importOfficialArchive(body)
-      for (const file of imported.files) {
-        await writeStoredFile(file.id, file.data, file.contentType)
-      }
-      for (const session of imported.sessions) {
-        await atomicWrite(sessionFile(session.id), JSON.stringify(session))
-      }
+      const imported = await importOfficialArchive(body, {
+        onFile: async (file) => {
+          await writeStoredFile(file.id, file.data, file.contentType)
+        },
+        onSession: async (session) => {
+          await atomicWrite(sessionFile(session.id), JSON.stringify(session))
+        },
+      })
       sendJson(res, 200, {
         ok: true,
-        sessions: imported.sessions.length,
-        files: imported.files.length,
+        sessions: imported.sessions,
+        files: imported.files,
         entries: imported.entryCount,
       })
       return
