@@ -4,24 +4,34 @@
   flex-shrink: 0;
   box-sizing: border-box;
   width: 261px;
+  max-width: 261px;
+  flex-basis: 261px;
   height: 100%;
   padding: 6px 12px 0;
   border-right: 1px solid var(--dsw-alias-border-l1);
   background-color: var(--dsw-specific-sidebar-fill);
   overflow: hidden;
+  will-change: width, flex-basis, opacity, transform;
+  transform: translateX(0);
   transition:
-    width 0.28s cubic-bezier(0.2, 0.8, 0.2, 1),
-    padding 0.28s cubic-bezier(0.2, 0.8, 0.2, 1),
-    opacity 0.2s ease,
-    border-color 0.2s ease;
+    width 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+    max-width 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+    flex-basis 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+    padding 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.22s ease,
+    transform 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 0.22s ease;
 }
 
 .siderCollapsed {
   width: 0;
+  max-width: 0;
+  flex-basis: 0;
   padding-right: 0;
   padding-left: 0;
   border-right-color: transparent;
   opacity: 0;
+  transform: translateX(-12px);
   pointer-events: none;
 }
 
