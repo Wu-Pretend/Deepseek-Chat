@@ -11,6 +11,9 @@ export type ThemePreference = 'light' | 'dark' | 'system'
 /** 思考强度映射到 Messages API 的 output_config.effort。 */
 export type ThinkingEffort = 'low' | 'high' | 'max'
 
+/** DeepSeek 扩展字段 safety_check.level。 */
+export type SafetyCheckLevel = 'low' | 'high'
+
 /** 本机设置，存 localStorage：API Key、语言、主题、位置、朗读音色、深度思考与智能搜索开关、侧边栏收起状态、外部存储地址 */
 type Settings = {
   apiKey: string | null
@@ -23,6 +26,8 @@ type Settings = {
   siderCollapsed: boolean
   chatModel: ChatModel
   thinkingEffort: ThinkingEffort
+  safetyCheck: SafetyCheckLevel
+  withdrawOnRefusal: boolean
   remoteStorageUrl: string
   remoteStorageToken: string
   remotePrefetchCount: number
@@ -39,6 +44,8 @@ const KEYS = {
   siderCollapsed: 'chat-demo:sider-collapsed',
   chatModel: 'chat-demo:chat-model',
   thinkingEffort: 'chat-demo:thinking-effort',
+  safetyCheck: 'chat-demo:safety-check',
+  withdrawOnRefusal: 'chat-demo:withdraw-on-refusal',
   remoteStorageUrl: 'chat-demo:remote-storage-url',
   remoteStorageToken: 'chat-demo:remote-storage-token',
   remotePrefetchCount: 'chat-demo:remote-prefetch-count',
@@ -122,6 +129,8 @@ export const useSettings = create<Settings>(() => ({
   siderCollapsed: read(KEYS.siderCollapsed) === 'true',
   chatModel: initialChatModel(),
   thinkingEffort: initialThinkingEffort(),
+  safetyCheck: read(KEYS.safetyCheck) === 'low' ? 'low' : 'high',
+  withdrawOnRefusal: read(KEYS.withdrawOnRefusal) !== 'false',
   remoteStorageUrl: read(KEYS.remoteStorageUrl) ?? __REMOTE_STORAGE_URL__,
   remoteStorageToken: read(KEYS.remoteStorageToken) ?? '',
   remotePrefetchCount: Number(read(KEYS.remotePrefetchCount) ?? '1'),
@@ -193,4 +202,14 @@ export const setChatModel = (chatModel: ChatModel) => {
 export const setThinkingEffort = (thinkingEffort: ThinkingEffort) => {
   write(KEYS.thinkingEffort, thinkingEffort)
   useSettings.setState({ thinkingEffort })
+}
+
+export const setSafetyCheck = (safetyCheck: SafetyCheckLevel) => {
+  write(KEYS.safetyCheck, safetyCheck)
+  useSettings.setState({ safetyCheck })
+}
+
+export const setWithdrawOnRefusal = (withdrawOnRefusal: boolean) => {
+  write(KEYS.withdrawOnRefusal, String(withdrawOnRefusal))
+  useSettings.setState({ withdrawOnRefusal })
 }

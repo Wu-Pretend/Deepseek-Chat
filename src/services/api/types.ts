@@ -191,7 +191,7 @@ export type CreateMessageRequest = {
   thinking: { type: 'enabled' | 'disabled'; budget_tokens?: number }
   output_config?: { effort: ReasoningEffort }
   tools: (DeepseekWebSearchTool | DeepseekReadUrlTool)[]
-  safety_check: { level: 'high' }
+  safety_check: { level: 'low' | 'high' }
   title?: { enabled: boolean }
 }
 

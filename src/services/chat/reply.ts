@@ -1,3 +1,4 @@
+import { useSettings } from '../settings.js'
 import type {
   AssistantBlockParam,
   FileBlockParam,
@@ -150,7 +151,11 @@ export const settleReply = (
   status,
   error,
   blocks: reply.blocks.flatMap((block): ReplyBlock[] => {
-    if (reply.stopReason === 'refusal' && (block.type === 'thinking' || block.type === 'text')) {
+    if (
+      useSettings.getState().withdrawOnRefusal &&
+      reply.stopReason === 'refusal' &&
+      (block.type === 'thinking' || block.type === 'text')
+    ) {
       return []
     }
     return block.type === 'thinking' && block.startedAt !== undefined && block.endedAt === undefined

@@ -1,4 +1,5 @@
 import { useTranslate } from '../../i18n/index.js'
+import { useSettings } from '../../services/settings.js'
 import clsx from 'clsx'
 import { memo } from 'react'
 import { IconRefreshOutline16, IconWarningOutline16 } from '../base/icons.js'
@@ -46,9 +47,10 @@ export const AssistantMessage = memo(function AssistantMessage({
   const t = useTranslate()
   const view = useReplyView(message, streaming)
   const panelEntry = useSearchPanel((state) => state.entry)
+  const withdrawOnRefusal = useSettings((state) => state.withdrawOnRefusal)
   const notice = streaming ? null : describeReply(message)
-  // 安全拒绝：已下发的思考与正文按协议丢弃，只显示模板答复。
-  const refused = message.stopReason === 'refusal'
+  // 安全拒绝：默认按协议丢弃已下发的思考和正文；用户可在设置中关闭撤回。
+  const refused = message.stopReason === 'refusal' && withdrawOnRefusal
   const answer = refused ? null : view.answer
   const responseText = [answer?.text, notice?.presentation === 'response' ? notice.text : null]
     .filter(Boolean)

@@ -28,10 +28,13 @@ import {
   setLocation,
   setRemotePrefetchCount,
   setRemoteStorage,
+  setSafetyCheck,
   setThemePreference,
   setThinkingEffort,
   setTtsVoice,
+  setWithdrawOnRefusal,
   useSettings,
+  type SafetyCheckLevel,
   type ThemePreference,
   type ThinkingEffort,
 } from '../../services/settings.js'
@@ -106,6 +109,8 @@ const SettingsContent = () => {
             <>
               <ModelSetting />
               <ThinkingEffortSetting />
+              <SafetyCheckSetting />
+              <WithdrawOnRefusalSetting />
               <ThemeSetting />
               <LocaleSetting />
               <TtsVoiceSetting />
@@ -215,6 +220,54 @@ const useHistoryDelete = () => {
     },
     confirm,
   }
+}
+
+/** 安全审查等级：high 会审核输入和输出，low 与不传 safety_check 相同。 */
+const SafetyCheckSetting = () => {
+  const t = useTranslate()
+  const safetyCheck = useSettings((state) => state.safetyCheck)
+  return (
+    <SettingCell
+      label={t('settingsSafetyCheck')}
+      description={t('settingsSafetyCheckHint')}
+      status={null}
+      action={
+        <Select
+          ariaLabel={t('settingsSafetyCheck')}
+          value={safetyCheck}
+          options={[
+            { value: 'low', label: t('settingsSafetyCheckLow') },
+            { value: 'high', label: t('settingsSafetyCheckHigh') },
+          ]}
+          onChange={(value) => setSafetyCheck(value as SafetyCheckLevel)}
+        />
+      }
+    />
+  )
+}
+
+/** 是否在 stop_reason=refusal 时删除已流式输出的思考和正文。 */
+const WithdrawOnRefusalSetting = () => {
+  const t = useTranslate()
+  const withdrawOnRefusal = useSettings((state) => state.withdrawOnRefusal)
+  return (
+    <SettingCell
+      label={t('settingsWithdrawOnRefusal')}
+      description={t('settingsWithdrawOnRefusalHint')}
+      status={null}
+      action={
+        <Select
+          ariaLabel={t('settingsWithdrawOnRefusal')}
+          value={withdrawOnRefusal ? 'true' : 'false'}
+          options={[
+            { value: 'true', label: t('settingsEnabled') },
+            { value: 'false', label: t('settingsDisabled') },
+          ]}
+          onChange={(value) => setWithdrawOnRefusal(value === 'true')}
+        />
+      }
+    />
+  )
 }
 
 /** 当前会话使用的 DeepSeek 模型。 */
