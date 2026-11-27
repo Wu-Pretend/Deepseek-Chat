@@ -65,7 +65,7 @@ export const Sider = ({ mobile = false, collapsed = false }: { mobile?: boolean;
   return (
     <div
       ref={rootRef}
-      className={clsx(styles.sider, mobile && styles.mobile, collapsed && styles.siderCollapsed)}
+      className={clsx(styles.sider, mobile && styles.mobile)}
     >
       <div className={styles.top}>
         <div className={styles.appName}>{t('appName')}</div>

@@ -6,6 +6,19 @@
   background-color: var(--dsw-alias-bg-base);
 }
 
+.siderSlot {
+  flex-shrink: 0;
+  width: 261px;
+  height: 100%;
+  overflow: hidden;
+  transition: width 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: width;
+}
+
+.siderSlotCollapsed {
+  width: 0;
+}
+
 .main {
   position: relative;
   display: flex;
@@ -58,5 +71,11 @@
     top: var(--app-viewport-top, 0px);
     bottom: auto;
     height: var(--app-viewport-height, 100dvh);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .siderSlot {
+    transition: none;
   }
 }
