@@ -243,16 +243,6 @@
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .sider,
-  .collapsed,
-  .drawer,
-  .drawerMask {
-    animation: none;
-    transition: none;
-  }
-}
-
 .mobile {
   width: 300px;
   max-width: calc(100vw - 48px);

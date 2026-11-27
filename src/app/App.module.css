@@ -73,9 +73,3 @@
     height: var(--app-viewport-height, 100dvh);
   }
 }
-
-@media (prefers-reduced-motion: reduce) {
-  .siderSlot {
-    transition: none;
-  }
-}
