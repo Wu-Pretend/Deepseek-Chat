@@ -129,7 +129,7 @@ export const App = () => {
             )}
           </div>
         </main>
-        {!isMobile ? <CollapsedSider visible={siderCollapsed} /> : null}
+        {!isMobile && siderCollapsed ? <CollapsedSider /> : null}
         <SearchPanel />
       </div>
       <SettingsDialog />

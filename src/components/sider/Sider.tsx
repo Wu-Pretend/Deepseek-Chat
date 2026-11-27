@@ -1,5 +1,5 @@
 import clsx from 'clsx'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslate } from '../../i18n/index.js'
 import { IconPanelLeftOutline16, IconSettingsOutline16, NewChatIcon } from '../base/icons.js'
 import { setSiderCollapsed } from '../../services/settings.js'
@@ -24,6 +24,19 @@ export const Sider = ({ mobile = false, collapsed = false }: { mobile?: boolean;
   const groups = useMemo(() => groupSessions(sessions, now, t), [sessions, now, t])
   const [deleting, setDeleting] = useState<SessionSummary | null>(null)
   const [deletePending, setDeletePending] = useState(false)
+  const rootRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const node = rootRef.current
+    if (!node) {
+      return
+    }
+    if (collapsed) {
+      node.setAttribute('inert', '')
+    } else {
+      node.removeAttribute('inert')
+    }
+  }, [collapsed])
 
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout>
@@ -51,8 +64,8 @@ export const Sider = ({ mobile = false, collapsed = false }: { mobile?: boolean;
 
   return (
     <div
+      ref={rootRef}
       className={clsx(styles.sider, mobile && styles.mobile, collapsed && styles.siderCollapsed)}
-      aria-hidden={collapsed || undefined}
     >
       <div className={styles.top}>
         <div className={styles.appName}>{t('appName')}</div>
