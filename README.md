@@ -37,6 +37,20 @@ The output is written to `dist/`. Deploy it to a static web server or open `dist
 - Animated sidebar collapse/expand and mobile drawer slide-in.
 - Simplified Chinese and English, light and dark themes, mobile layouts, location settings, and chat history import and export.
 
+## Main settings
+
+| Setting | Description |
+| --- | --- |
+| Model | Choose `deepseek-flash` or `deepseek-v4-pro`; new replies use the current selection. |
+| Thinking effort | Maps to `output_config.effort`: `low`, `high`, or `max`; applies when DeepThink is enabled. |
+| Safety check level | Maps to `safety_check.level`: `low` (default checks) or `high` (basic risk control for input and output). |
+| Withdraw output on refusal | When enabled, `stop_reason: refusal` removes already streamed thinking and text and keeps only the refusal notice; disable it to retain the generated content. |
+| Recent full-chat prefetch | Number of complete conversations prefetched during external-storage sync. Use `0` on slow networks to sync only the list and download a chat when opened. |
+| Account balance | Queries `GET /user/balance` with the browser-local API Key; the key is never uploaded to the external storage server. |
+| External storage | Server URL and Bearer token for remote conversation and attachment sync. |
+
+Sidebar collapse/expand and the mobile drawer use CSS transitions and respect `prefers-reduced-motion`.
+
 ## External storage (optional)
 
 By default chats are stored in the browser's IndexedDB. To sync across devices, start the bundled zero-dependency storage server:
