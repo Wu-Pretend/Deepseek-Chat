@@ -131,6 +131,8 @@ export const en = {
   remoteStorageUrlPlaceholder: 'e.g. http://127.0.0.1:8787',
   remoteStorageToken: 'Access token (optional)',
   remoteStorageTokenPlaceholder: 'Bearer Token',
+  remotePrefetchCount: 'Prefetch recent complete chats',
+  remotePrefetchCountHint: '0 syncs only the list and downloads a chat when opened. Use 0 or 1 on slow connections.',
   remoteStorageTest: 'Test connection',
   remoteStorageSync: 'Sync now',
   remoteStorageConnected: 'Connected',

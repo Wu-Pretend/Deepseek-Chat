@@ -55,7 +55,7 @@ REMOTE_STORAGE_URL=http://127.0.0.1:8787 npm run dev
 
 2. Set the server URL and optional token in **Settings → Data → External storage** at runtime.
 
-When enabled, the app pulls the session list and prefetches only the 3 most recent complete conversations and their attachments. Older conversations appear as summaries and download on demand when opened. Locally newer sessions are pushed to the server, and subsequent saves, renames, and deletes are mirrored. Conflicts use per-session `updatedAt` last-write-wins.
+When enabled, the app pulls the session list and prefetches the most recent N complete conversations and their attachments (default 1; set to 0 on slow connections). Older conversations appear as summaries and download on demand when opened. Locally newer sessions are pushed to the server, and subsequent saves, renames, and deletes are mirrored. Conflicts use per-session `updatedAt` last-write-wins.
 
 > If a sync is interrupted, click "Sync now" again. Sessions already saved to IndexedDB are skipped; an incomplete session is retried.
 

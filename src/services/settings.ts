@@ -19,6 +19,7 @@ type Settings = {
   siderCollapsed: boolean
   remoteStorageUrl: string
   remoteStorageToken: string
+  remotePrefetchCount: number
 }
 
 const KEYS = {
@@ -32,6 +33,7 @@ const KEYS = {
   siderCollapsed: 'chat-demo:sider-collapsed',
   remoteStorageUrl: 'chat-demo:remote-storage-url',
   remoteStorageToken: 'chat-demo:remote-storage-token',
+  remotePrefetchCount: 'chat-demo:remote-prefetch-count',
 } as const
 
 const read = (key: string) => {
@@ -102,6 +104,7 @@ export const useSettings = create<Settings>(() => ({
   siderCollapsed: read(KEYS.siderCollapsed) === 'true',
   remoteStorageUrl: read(KEYS.remoteStorageUrl) ?? __REMOTE_STORAGE_URL__,
   remoteStorageToken: read(KEYS.remoteStorageToken) ?? '',
+  remotePrefetchCount: Number(read(KEYS.remotePrefetchCount) ?? '1'),
 }))
 
 export const setLocale = (locale: Locale) => {
@@ -154,4 +157,10 @@ export const setRemoteStorage = (url: string, token: string) => {
     remoteStorageUrl: normalizedUrl,
     remoteStorageToken: normalizedToken,
   })
+}
+
+export const setRemotePrefetchCount = (count: number) => {
+  const normalized = Number.isFinite(count) ? Math.max(0, Math.min(20, Math.trunc(count))) : 1
+  write(KEYS.remotePrefetchCount, String(normalized))
+  useSettings.setState({ remotePrefetchCount: normalized })
 }

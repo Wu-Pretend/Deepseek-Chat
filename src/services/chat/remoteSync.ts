@@ -1,4 +1,5 @@
 import * as remote from '../remoteStorage.js'
+import { useSettings } from '../settings.js'
 import * as db from './db.js'
 import type { Session, SessionSummary } from './types.js'
 
@@ -25,9 +26,6 @@ const loadSessionFiles = async (session: Session): Promise<db.StoredFile[]> => {
   }
   return files
 }
-
-/** 首次同步只预取最近几个完整会话，其余会话显示摘要，打开时再下载。 */
-const RECENT_FULL_SESSIONS = 3
 
 const uploadedFileIds = new Set<string>()
 let uploadedCacheKey = ''
@@ -137,7 +135,8 @@ export const pullIntoLocal = async (): Promise<void> => {
   }
 
   const sortedRemote = [...remoteSummaries].sort((a, b) => b.updatedAt - a.updatedAt)
-  const recentIds = new Set(sortedRemote.slice(0, RECENT_FULL_SESSIONS).map((item) => item.id))
+  const prefetchCount = useSettings.getState().remotePrefetchCount
+  const recentIds = new Set(sortedRemote.slice(0, prefetchCount).map((item) => item.id))
 
   for (const remoteSummary of sortedRemote) {
     const local = localById.get(remoteSummary.id)

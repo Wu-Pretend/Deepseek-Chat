@@ -485,3 +485,16 @@
   gap: 8px;
   flex-wrap: wrap;
 }
+
+.remoteStoragePrefetch {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 14px;
+  line-height: 22px;
+}
+
+.remoteStoragePrefetch .remoteStorageInput {
+  width: 96px;
+}

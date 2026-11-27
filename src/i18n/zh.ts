@@ -124,6 +124,8 @@ export const zh = {
   remoteStorageUrlPlaceholder: '例如 http://127.0.0.1:8787',
   remoteStorageToken: '访问 Token（可选）',
   remoteStorageTokenPlaceholder: 'Bearer Token',
+  remotePrefetchCount: '预取最近完整会话数',
+  remotePrefetchCountHint: '0 表示只同步列表，打开会话时再下载。网络慢时建议设为 0 或 1。',
   remoteStorageTest: '测试连接',
   remoteStorageSync: '立即同步',
   remoteStorageConnected: '连接成功',

@@ -23,6 +23,7 @@ import {
   isChineseBrowser,
   setLocale,
   setLocation,
+  setRemotePrefetchCount,
   setRemoteStorage,
   setThemePreference,
   setTtsVoice,
@@ -213,6 +214,7 @@ const RemoteStorageSetting = () => {
   const t = useTranslate()
   const savedUrl = useSettings((state) => state.remoteStorageUrl)
   const savedToken = useSettings((state) => state.remoteStorageToken)
+  const prefetchCount = useSettings((state) => state.remotePrefetchCount)
   const [url, setUrl] = useState(savedUrl)
   const [token, setToken] = useState(savedToken)
   const [busy, setBusy] = useState<'test' | 'sync' | null>(null)
@@ -278,6 +280,21 @@ const RemoteStorageSetting = () => {
           aria-label={t('remoteStorageToken')}
           onChange={(event) => setToken(event.target.value)}
         />
+        <label className={styles.remoteStoragePrefetch}>
+          <span>{t('remotePrefetchCount')}</span>
+          <select
+            className={styles.remoteStorageInput}
+            value={prefetchCount}
+            onChange={(event) => setRemotePrefetchCount(Number(event.target.value))}
+          >
+            {[0, 1, 2, 3, 5].map((value) => (
+              <option key={value} value={value}>
+                {value}
+              </option>
+            ))}
+          </select>
+        </label>
+        <div className={styles.description}>{t('remotePrefetchCountHint')}</div>
       </div>
       <div className={styles.remoteStorageActions}>
         <Button
