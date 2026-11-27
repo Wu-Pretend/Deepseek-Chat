@@ -6,6 +6,18 @@
 
 export type ChatModel = 'deepseek-flash' | 'deepseek-v4-pro'
 
+/** Messages API 的思考强度；显式 thinking.type 仍决定是否开启思考。 */
+export type ReasoningEffort =
+  | 'none'
+  | 'minimal'
+  | 'low'
+  | 'medium'
+  | 'high'
+  | 'xhigh'
+  | 'ultra'
+  | 'max'
+  | null
+
 // ---------- 响应：内容块 ----------
 
 /** 正文引用：服务端把模型的引用标记还原为来源，挂在对应文本块上 */
@@ -176,7 +188,8 @@ export type CreateMessageRequest = {
   model: ChatModel
   system: string
   messages: MessageParam[]
-  thinking: { type: 'enabled' | 'disabled' }
+  thinking: { type: 'enabled' | 'disabled'; budget_tokens?: number }
+  output_config?: { effort: ReasoningEffort }
   tools: (DeepseekWebSearchTool | DeepseekReadUrlTool)[]
   safety_check: { level: 'high' }
   title?: { enabled: boolean }
@@ -257,4 +270,17 @@ export type ApiErrorBody = {
     param?: string | null
     code?: string | null
   }
+}
+
+/** GET /user/balance */
+export type BalanceInfo = {
+  currency: 'CNY' | 'USD'
+  total_balance: string
+  granted_balance: string
+  topped_up_balance: string
+}
+
+export type BalanceResponse = {
+  is_available: boolean
+  balance_infos: BalanceInfo[]
 }

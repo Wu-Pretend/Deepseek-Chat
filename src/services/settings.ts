@@ -1,11 +1,15 @@
 import { create } from 'zustand'
 import type { TtsVoice } from './api/speech.js'
+import type { ChatModel } from './api/types.js'
 import { normalizeLocation, type UserLocation } from './location.js'
 
 export type Locale = 'zh-CN' | 'en-US'
 
 /** 主题偏好；默认跟随系统 */
 export type ThemePreference = 'light' | 'dark' | 'system'
+
+/** 思考强度映射到 Messages API 的 output_config.effort。 */
+export type ThinkingEffort = 'low' | 'high' | 'max'
 
 /** 本机设置，存 localStorage：API Key、语言、主题、位置、朗读音色、深度思考与智能搜索开关、侧边栏收起状态、外部存储地址 */
 type Settings = {
@@ -17,6 +21,8 @@ type Settings = {
   thinking: boolean
   search: boolean
   siderCollapsed: boolean
+  chatModel: ChatModel
+  thinkingEffort: ThinkingEffort
   remoteStorageUrl: string
   remoteStorageToken: string
   remotePrefetchCount: number
@@ -31,6 +37,8 @@ const KEYS = {
   thinking: 'chat-demo:thinking',
   search: 'chat-demo:search',
   siderCollapsed: 'chat-demo:sider-collapsed',
+  chatModel: 'chat-demo:chat-model',
+  thinkingEffort: 'chat-demo:thinking-effort',
   remoteStorageUrl: 'chat-demo:remote-storage-url',
   remoteStorageToken: 'chat-demo:remote-storage-token',
   remotePrefetchCount: 'chat-demo:remote-prefetch-count',
@@ -93,6 +101,16 @@ const initialThemePreference = (): ThemePreference => {
 /** 未保存过时使用服务端默认音色 stella（海星） */
 const initialTtsVoice = (): TtsVoice => (read(KEYS.ttsVoice) === 'tide' ? 'tide' : 'stella')
 
+const initialChatModel = (): ChatModel => {
+  const saved = read(KEYS.chatModel)
+  return saved === 'deepseek-v4-pro' ? 'deepseek-v4-pro' : 'deepseek-flash'
+}
+
+const initialThinkingEffort = (): ThinkingEffort => {
+  const saved = read(KEYS.thinkingEffort)
+  return saved === 'low' || saved === 'max' ? saved : 'high'
+}
+
 export const useSettings = create<Settings>(() => ({
   apiKey: read(KEYS.apiKey),
   locale: initialLocale(),
@@ -102,6 +120,8 @@ export const useSettings = create<Settings>(() => ({
   thinking: read(KEYS.thinking) === 'true',
   search: read(KEYS.search) === 'true',
   siderCollapsed: read(KEYS.siderCollapsed) === 'true',
+  chatModel: initialChatModel(),
+  thinkingEffort: initialThinkingEffort(),
   remoteStorageUrl: read(KEYS.remoteStorageUrl) ?? __REMOTE_STORAGE_URL__,
   remoteStorageToken: read(KEYS.remoteStorageToken) ?? '',
   remotePrefetchCount: Number(read(KEYS.remotePrefetchCount) ?? '1'),
@@ -163,4 +183,14 @@ export const setRemotePrefetchCount = (count: number) => {
   const normalized = Number.isFinite(count) ? Math.max(0, Math.min(20, Math.trunc(count))) : 1
   write(KEYS.remotePrefetchCount, String(normalized))
   useSettings.setState({ remotePrefetchCount: normalized })
+}
+
+export const setChatModel = (chatModel: ChatModel) => {
+  write(KEYS.chatModel, chatModel)
+  useSettings.setState({ chatModel })
+}
+
+export const setThinkingEffort = (thinkingEffort: ThinkingEffort) => {
+  write(KEYS.thinkingEffort, thinkingEffort)
+  useSettings.setState({ thinkingEffort })
 }

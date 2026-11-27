@@ -1,5 +1,5 @@
 import clsx from 'clsx'
-import { useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import {
   IconDarkOutline16,
   IconDataOutline16,
@@ -18,17 +18,22 @@ import {
 import { useIsMobile } from '../../app/viewport.js'
 import { syncRemoteNow, useChatStore } from '../../services/chat/store.js'
 import { remoteHealth } from '../../services/remoteStorage.js'
+import { fetchBalance } from '../../services/api/client.js'
+import type { BalanceResponse, ChatModel } from '../../services/api/types.js'
 import { regionCodes, getRegionName, provinces } from '../../services/location.js'
 import {
   isChineseBrowser,
+  setChatModel,
   setLocale,
   setLocation,
   setRemotePrefetchCount,
   setRemoteStorage,
   setThemePreference,
+  setThinkingEffort,
   setTtsVoice,
   useSettings,
   type ThemePreference,
+  type ThinkingEffort,
 } from '../../services/settings.js'
 import { useTranslate, type TranslationKey, type TranslationMessage } from '../../i18n/index.js'
 import { Button } from '../base/Button.js'
@@ -99,6 +104,8 @@ const SettingsContent = () => {
         <div role="tabpanel" className={styles.content}>
           {section === 'general' ? (
             <>
+              <ModelSetting />
+              <ThinkingEffortSetting />
               <ThemeSetting />
               <LocaleSetting />
               <TtsVoiceSetting />
@@ -107,6 +114,7 @@ const SettingsContent = () => {
           ) : (
             <>
               <ApiKeyField editor={apiKeyEditor} />
+              <BalanceSetting />
               <RemoteStorageSetting />
               <ImportHistory historyImport={historyImport} disabled={historyBusy} />
               <ExportHistory disabled={historyBusy} />
@@ -207,6 +215,141 @@ const useHistoryDelete = () => {
     },
     confirm,
   }
+}
+
+/** 当前会话使用的 DeepSeek 模型。 */
+const ModelSetting = () => {
+  const t = useTranslate()
+  const chatModel = useSettings((state) => state.chatModel)
+  return (
+    <SettingCell
+      label={t('settingsModel')}
+      status={null}
+      action={
+        <Select
+          ariaLabel={t('settingsModel')}
+          value={chatModel}
+          options={[
+            { value: 'deepseek-flash', label: t('settingsModelFlash') },
+            { value: 'deepseek-v4-pro', label: t('settingsModelV4Pro') },
+          ]}
+          onChange={(value) => setChatModel(value as ChatModel)}
+        />
+      }
+    />
+  )
+}
+
+/** 思考强度：映射到 Messages API 的 output_config.effort。 */
+const ThinkingEffortSetting = () => {
+  const t = useTranslate()
+  const thinkingEffort = useSettings((state) => state.thinkingEffort)
+  return (
+    <SettingCell
+      label={t('settingsThinkingEffort')}
+      description={t('settingsThinkingEffortHint')}
+      status={null}
+      action={
+        <Select
+          ariaLabel={t('settingsThinkingEffort')}
+          value={thinkingEffort}
+          options={[
+            { value: 'low', label: t('settingsThinkingEffortLow') },
+            { value: 'high', label: t('settingsThinkingEffortHigh') },
+            { value: 'max', label: t('settingsThinkingEffortMax') },
+          ]}
+          onChange={(value) => setThinkingEffort(value as ThinkingEffort)}
+        />
+      }
+    />
+  )
+}
+
+/** 查询 DeepSeek 账户余额；API Key 始终只保存在浏览器。 */
+const BalanceSetting = () => {
+  const t = useTranslate()
+  const apiKey = useSettings((state) => state.apiKey)
+  const [balance, setBalance] = useState<BalanceResponse | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const refresh = async () => {
+    if (!apiKey) {
+      return
+    }
+    setLoading(true)
+    setError(null)
+    try {
+      setBalance(await fetchBalance(apiKey))
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (!apiKey) {
+      setBalance(null)
+      setError(null)
+      return
+    }
+    const controller = new AbortController()
+    setLoading(true)
+    setError(null)
+    fetchBalance(apiKey, controller.signal)
+      .then((value) => {
+        if (!controller.signal.aborted) {
+          setBalance(value)
+        }
+      })
+      .catch((reason: unknown) => {
+        if (!controller.signal.aborted) {
+          setError(reason instanceof Error ? reason.message : String(reason))
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) {
+          setLoading(false)
+        }
+      })
+    return () => controller.abort()
+  }, [apiKey])
+
+  let status: Status = null
+  let description: string | undefined
+  if (!apiKey) {
+    status = { key: 'balanceNoApiKey' }
+  } else if (loading) {
+    status = { key: 'balanceLoading' }
+  } else if (error) {
+    status = { key: 'balanceQueryFailed', params: { message: error }, error: true }
+  } else if (balance) {
+    if (!balance.is_available) {
+      status = { key: 'balanceUnavailable', error: true }
+    }
+    description = balance.balance_infos
+      .map((info) => `${info.currency} ${info.total_balance}`)
+      .join(' · ')
+  }
+
+  return (
+    <SettingCell
+      label={t('settingsBalance')}
+      description={description}
+      status={status}
+      action={
+        <Button
+          variant="outlined"
+          size="m"
+          disabled={!apiKey || loading}
+          onClick={() => void refresh()}
+        >
+          {t('balanceRefresh')}
+        </Button>
+      }
+    />
+  )
 }
 
 /** 外部存储：把会话和附件镜像到自建 HTTP 服务，实现跨设备同步。 */
