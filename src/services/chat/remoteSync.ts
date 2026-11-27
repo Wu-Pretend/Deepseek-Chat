@@ -26,6 +26,9 @@ const loadSessionFiles = async (session: Session): Promise<db.StoredFile[]> => {
   return files
 }
 
+/** 首次同步只预取最近几个完整会话，其余会话显示摘要，打开时再下载。 */
+const RECENT_FULL_SESSIONS = 3
+
 const uploadedFileIds = new Set<string>()
 let uploadedCacheKey = ''
 
@@ -87,8 +90,28 @@ export const deleteSession = async (id: string): Promise<void> => {
   await remote.remoteDeleteSession(id)
 }
 
+/** 按需下载一个完整会话及其图片附件；用于打开尚未缓存的旧会话。 */
+export const pullSession = async (id: string): Promise<void> => {
+  if (!remote.isRemoteStorageConfigured()) {
+    return
+  }
+  const session = await remote.remoteGetSession(id)
+  const files: db.StoredFile[] = []
+  for (const fileId of fileIdsOf(session)) {
+    try {
+      const blob = await remote.remoteGetFile(fileId)
+      if (blob.size > 0) {
+        files.push({ id: fileId, blob })
+      }
+    } catch {
+      // A missing blob must not prevent the session text from opening.
+    }
+  }
+  await db.saveSession(session, files)
+}
+
 /**
- * 双向合并：先拉取远端较新的会话和墓碑，再把本地较新或远端缺失的会话推上去。
+ * 双向合并：拉取最近几个完整会话，其余会话只写列表摘要，打开时再按需下载。
  * 冲突策略是按会话 updatedAt 的 last-write-wins。
  */
 export const pullIntoLocal = async (): Promise<void> => {
@@ -113,26 +136,28 @@ export const pullIntoLocal = async (): Promise<void> => {
     }
   }
 
-  for (const remoteSummary of remoteSummaries) {
+  const sortedRemote = [...remoteSummaries].sort((a, b) => b.updatedAt - a.updatedAt)
+  const recentIds = new Set(sortedRemote.slice(0, RECENT_FULL_SESSIONS).map((item) => item.id))
+
+  for (const remoteSummary of sortedRemote) {
     const local = localById.get(remoteSummary.id)
     if (local && remoteSummary.updatedAt <= local.updatedAt) {
       continue
     }
-    try {
-      const session = await remote.remoteGetSession(remoteSummary.id)
-      const files: db.StoredFile[] = []
-      for (const id of fileIdsOf(session)) {
-        try {
-          const blob = await remote.remoteGetFile(id)
-          if (blob.size > 0) {
-            files.push({ id, blob })
-          }
-        } catch {
-          // A missing remote blob must not block the rest of the session.
-        }
+
+    // Older conversations are listed immediately but their messages and
+    // attachments are fetched only when the user opens the conversation.
+    if (!recentIds.has(remoteSummary.id)) {
+      if (!local) {
+        await db.saveSessionSummary(remoteSummary)
+        localById.set(remoteSummary.id, remoteSummary)
       }
-      await db.saveSession(session, files)
-      localById.set(session.id, remoteSummary)
+      continue
+    }
+
+    try {
+      await pullSession(remoteSummary.id)
+      localById.set(remoteSummary.id, remoteSummary)
     } catch (error) {
       // Keep the local copy if one session cannot be downloaded.
       db.reportStorageError('pull remote session')(error)

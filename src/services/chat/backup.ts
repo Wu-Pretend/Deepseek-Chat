@@ -1,5 +1,7 @@
 import { formatDate } from '../../utils/format.js'
+import { isRemoteStorageConfigured } from '../remoteStorage.js'
 import * as db from './db.js'
+import * as remoteSync from './remoteSync.js'
 import { replaceHistory, useChatStore } from './store.js'
 import type { Session } from './types.js'
 
@@ -23,9 +25,14 @@ export const exportHistory = (): Promise<{ name: string; blob: Blob }> =>
     const { sessions, sessionCache } = useChatStore.getState()
     async function* readSessions(): AsyncGenerator<Session> {
       for (const summary of sessions) {
-        const session = Object.hasOwn(sessionCache, summary.id)
+        let session = Object.hasOwn(sessionCache, summary.id)
           ? sessionCache[summary.id]
           : await db.loadSession(summary.id)
+        // 按需同步模式下列表里可能只有摘要，导出前把缺失的完整会话拉下来。
+        if (!session && isRemoteStorageConfigured()) {
+          await remoteSync.pullSession(summary.id)
+          session = await db.loadSession(summary.id)
+        }
         if (!session) {
           throw new Error(`History session disappeared during export: ${summary.id}`)
         }

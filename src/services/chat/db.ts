@@ -81,6 +81,23 @@ export const loadSessionSummaries = async (): Promise<SessionSummary[]> =>
 export const loadSession = async (id: string): Promise<Session | undefined> =>
   (await getDB()).get('sessions', id)
 
+/** 仅写入列表摘要；用于远程同步时保留尚未下载详情的会话占位。 */
+export const saveSessionSummary = async (summary: SessionSummary): Promise<void> => {
+  const tx = (await getDB()).transaction('sessionSummaries', 'readwrite')
+  await Promise.all([
+    (async () => {
+      try {
+        const existing = await tx.store.get(summary.id)
+        await tx.store.put({ ...summary, fileIds: existing?.fileIds ?? [] })
+      } catch (error) {
+        abortTransaction(tx)
+        throw error
+      }
+    })(),
+    tx.done,
+  ])
+}
+
 export const saveSession = async (session: Session, files: StoredFile[] = []): Promise<void> => {
   const summary = storedSummary(session)
   const tx = (await getDB()).transaction(['sessions', 'sessionSummaries', 'files'], 'readwrite')
@@ -108,11 +125,19 @@ export const renameSession = async (id: string, title: string): Promise<void> =>
     (async () => {
       try {
         const sessions = tx.objectStore('sessions')
+        const summaries = tx.objectStore('sessionSummaries')
         const session = await sessions.get(id)
         if (session) {
           session.title = title
           await sessions.put(session)
-          await tx.objectStore('sessionSummaries').put(storedSummary(session))
+          await summaries.put(storedSummary(session))
+        } else {
+          // 未下载详情的远程摘要占位也要能重命名。
+          const summary = await summaries.get(id)
+          if (summary) {
+            summary.title = title
+            await summaries.put(summary)
+          }
         }
       } catch (error) {
         abortTransaction(tx)

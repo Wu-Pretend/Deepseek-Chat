@@ -361,7 +361,12 @@ const ensureSessionLoaded = (id: string): Promise<void> => {
   sessionLoads.set(id, load)
   load.promise = (async () => {
     try {
-      const stored = await db.loadSession(id)
+      let stored = await db.loadSession(id)
+      // 旧会话首次同步时只保存摘要；用户真正打开时再按需下载完整会话和附件。
+      if (!stored && isRemoteStorageConfigured()) {
+        await remoteSync.pullSession(id)
+        stored = await db.loadSession(id)
+      }
       if (epoch !== historyEpoch || sessionLoads.get(id) !== load) {
         return
       }
